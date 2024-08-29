@@ -8,6 +8,7 @@
 /public/storage/*
 /var/
 /vendor/
+/src/**/*Test*
 ###< symfony/framework-bundle ###
 
 output.txt

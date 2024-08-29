@@ -54,12 +54,17 @@ class CreateEntityCommand extends Command
             $io->note(sprintf('You passed an argument: %s', $entityName));
         }
 
-        $io->note($this->kernel->getProjectDir() . DIRECTORY_SEPARATOR . 'src');
+        $srcDir = $this->kernel->getProjectDir() . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR;
+        $io->note($srcDir);
 
         $table = $io->createTable();
         $table->setHeaders(['path', 'class']);
-        foreach ($this->getFilesToCreate($entityName) as $path => $class) {
-            $table->addRow([$path, $class]);
+        foreach ($this->getFilesToCreate($entityName) as $class) {
+            $this->filesystem->dumpFile($srcDir . DIRECTORY_SEPARATOR . $class->getFilePath(), (string) $class);
+            $table->addRow([
+                str_replace(DIRECTORY_SEPARATOR,PHP_EOL, $srcDir) . $class->getFilePath(),
+                $class
+            ]);
         }
 
         $table->render();
@@ -69,7 +74,6 @@ class CreateEntityCommand extends Command
 
     private function getFilesToCreate(string $entityName): array
     {
-        $appPrefix = "\\App";
         $entity = "Domain\\{$entityName}\\{$entityName}Entity";
         $repositoryInterface = "Domain\\{$entityName}\\{$entityName}RepositoryInterface";
         $model = "Application\\{$entityName}\\{$entityName}Model";
@@ -89,13 +93,15 @@ class CreateEntityCommand extends Command
                 $entity
             ),
             $repositoryInterface => $this->getEntityClass(
-                $repositoryInterface
+                $repositoryInterface,
+                type: 'interface',
             ),
             $model => $this->getEntityClass(
                 $model
             ),
             $finderInterface => $this->getEntityClass(
-                $finderInterface
+                $finderInterface,
+                type: 'interface',
             ),
             $createCommand => $this->getEntityClass(
                 $createCommand
@@ -104,18 +110,24 @@ class CreateEntityCommand extends Command
                 $updateCommand
             ),
             $createCommandHandler => $this->getEntityClass(
-                $createCommandHandler
+                $createCommandHandler,
+                attributes: [
+                    'App\\' . $repositoryInterface => 'private readonly'
+                ]
             ),
             $updateCommandHandler => $this->getEntityClass(
-                $updateCommandHandler
+                $updateCommandHandler,
+                attributes: [
+                    'App\\' . $repositoryInterface => 'private readonly'
+                ]
             ),
             $dbalFinder => $this->getEntityClass(
                 $dbalFinder,
-                implements: [$finderInterface]
+                implements: ['App\\' . $finderInterface]
             ),
             $dbalRepository => $this->getEntityClass(
                 $dbalRepository,
-                implements: [$repositoryInterface]
+                implements: ['App\\' . $repositoryInterface]
             ),
             $controller => $this->getEntityClass(
                 $controller,
@@ -132,6 +144,7 @@ class CreateEntityCommand extends Command
 
     private function getEntityClass(
         string $fqn,
+        string $type = 'class',
         array  $implements = [],
         array  $extends = [],
         array  $attributes = [],
@@ -140,6 +153,7 @@ class CreateEntityCommand extends Command
     {
         return new class(
             fqn: $fqn,
+            type: $type,
             implements: $implements,
             extends: $extends,
             attributes: $attributes,
@@ -147,12 +161,18 @@ class CreateEntityCommand extends Command
         ) implements Stringable {
             public function __construct(
                 public readonly string $fqn,
+                public readonly string $type,
                 public readonly array  $implements,
                 public readonly array  $extends,
                 public readonly array  $attributes,
                 public readonly array  $methods,
             )
             {
+            }
+
+            public function getFilePath(): string
+            {
+                return str_replace("\\", DIRECTORY_SEPARATOR, $this->fqn) . '.php';
             }
 
             private function getLastBackslash(): int
@@ -190,9 +210,38 @@ class CreateEntityCommand extends Command
             private function addLeadingBackslashes(array $strings): array
             {
                 return array_map(
-                    fn (string $fqn) => str_starts_with($fqn, '\\') ? $fqn : "\\{$fqn}",
+                    fn (string $fqn) => $this->addLeadingBackslash($fqn),
                     $strings
                 );
+            }
+
+            private function addLeadingBackslash(string $fqn): string
+            {
+                return str_starts_with($fqn, '\\') ? $fqn : "\\{$fqn}";
+            }
+
+            private function getAttributes(): string
+            {
+                $ret = [];
+                foreach ($this->attributes as $class => $type) {
+                    $baseClass = '$' . lcfirst(substr($class, strrpos($class, '\\') + 1));
+                    $ret[] = $type . ' ' . $this->addLeadingBackslash($class) . ' ' . $baseClass;
+                }
+                return implode(','.PHP_EOL, $ret);
+            }
+
+            private function getConstructor(): string
+            {
+                if ($this->type === 'interface') {
+                    return '';
+                }
+
+                return <<<PHP
+public function __construct(
+    {$this->getAttributes()}
+) {}
+PHP;
+
             }
 
             public function __toString(): string
@@ -204,7 +253,9 @@ declare(strict_types=1);
 
 namespace App\\{$this->getNamespace()};
 
-class {$this->getClass()}{$this->getImplements()}{$this->getExtends()} {
+{$this->type} {$this->getClass()}{$this->getImplements()}{$this->getExtends()} {
+
+{$this->getConstructor()}
 
 }
 
