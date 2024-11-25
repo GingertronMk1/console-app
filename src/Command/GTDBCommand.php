@@ -2,7 +2,6 @@
 
 namespace App\Command;
 
-use stdClass;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -36,50 +35,63 @@ class GTDBCommand extends Command
             'legend' => ['cars' => $legendCars]
         ] = $response->toArray();
 
-        /** @var array< $carClass > $usedCars */
-        $usedCars = array_map(
-            $this->getCarClass(...),
-            $usedCars
-        );
-
-        /** @var array< $carClass > $legendCars */
-        $legendCars = array_map(
-            $this->getCarClass(...),
+        $legends = array_map(
+            fn(array $arr) => $this->getCarClass($arr, 'legends'),
             $legendCars
         );
 
-        usort($usedCars, $this->sortCars(...));
-        usort($legendCars, $this->sortCars(...));
+        $useds = array_map(
+            fn(array $arr) => $this->getCarClass($arr, 'used'),
+            $usedCars
+        );
 
-        $legendTable = $io->createTable();
-        $legendTable->setHeaders(['Make', 'Model', 'Credits', 'Est Days', 'Max Est Days']);
+        $allCars = array_merge($legends, $useds);
 
-        foreach ($legendCars as $car) {
-            $legendTable->addRow([
+        usort($allCars, $this->sortCars(...));
+
+        $io->table(
+            [
+                'Make',
+                'Model',
+                'Credits',
+                'Est Days',
+                'Max Est Days',
+                'Dealership'
+            ],
+            array_map(fn(object $car) => [
                 $car->manufacturer,
                 $car->model,
-                $car->hrCredits(),
+                number_format($car->credits),
                 $car->hrEstimateDays(),
                 $car->hrMaxEstimateDays(),
-            ]);
-        }
-
-        $legendTable->render();
+                ucfirst($car->dealership)
+            ],
+                $allCars)
+        );
 
         return Command::SUCCESS;
     }
 
     private function getCarClass(
-        array $arr,
+        array  $arr,
+        string $dealership
     ): object
     {
-        $class =  new class extends stdClass {
+        return new class (
+            manufacturer: $arr['manufacturer'],
+            model: $arr['name'],
+            credits: $arr['credits'],
+            estimateDays: $arr['estimatedays'],
+            maxEstimateDays: $arr['maxestimatedays'],
+            dealership: $dealership
+        ) {
             public function __construct(
                 public string $manufacturer,
                 public string $model,
                 public int    $credits,
                 public int    $estimateDays,
-                public int    $maxEstimateDays
+                public int    $maxEstimateDays,
+                public string $dealership
             )
             {
             }
@@ -108,20 +120,36 @@ class GTDBCommand extends Command
                 };
             }
         };
-
-        return new $class(
-            manufacturer: $arr['manufacturer'],
-            model: $arr['name'],
-            credits: $arr['credits'],
-            estimateDays: $arr['estimatedays'],
-            maxEstimateDays: $arr['maxestimatedays'],
-        );
     }
 
     private function sortCars(object $a, object $b): int
     {
         $manComp = strcmp($a->manufacturer, $b->manufacturer);
         return $manComp === 0 ? strcmp($a->model, $b->model) : $manComp;
+    }
+
+    private function makeTable(SymfonyStyle $io, array $cars, string $dealership): void
+    {
+        $table = $io->createTable();
+        $table->setHeaders(['Make', 'Model', 'Credits', 'Est Days', 'Max Est Days']);
+        $carObjs = array_map(
+            $this->getCarClass(...),
+            $cars
+        );
+
+        usort($carObjs, $this->sortCars(...));
+
+        foreach ($carObjs as $car) {
+            $table->addRow([
+                $car->manufacturer,
+                $car->model,
+                $car->hrCredits(),
+                $car->hrEstimateDays(),
+                $car->hrMaxEstimateDays(),
+            ]);
+        }
+
+        $table->render();
     }
 }
 
