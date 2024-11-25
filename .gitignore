@@ -12,3 +12,4 @@
 ###< symfony/framework-bundle ###
 
 output.txt
+output.*.txt
