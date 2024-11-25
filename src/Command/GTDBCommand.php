@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use stdClass;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -72,13 +73,7 @@ class GTDBCommand extends Command
         array $arr,
     ): object
     {
-        return new class(
-            manufacturer: $arr['manufacturer'],
-            model: $arr['name'],
-            credits: $arr['credits'],
-            estimateDays: $arr['estimatedays'],
-            maxEstimateDays: $arr['maxestimatedays'],
-        ) {
+        $class =  new class extends stdClass {
             public function __construct(
                 public string $manufacturer,
                 public string $model,
@@ -113,6 +108,14 @@ class GTDBCommand extends Command
                 };
             }
         };
+
+        return new $class(
+            manufacturer: $arr['manufacturer'],
+            model: $arr['name'],
+            credits: $arr['credits'],
+            estimateDays: $arr['estimatedays'],
+            maxEstimateDays: $arr['maxestimatedays'],
+        );
     }
 
     private function sortCars(object $a, object $b): int
