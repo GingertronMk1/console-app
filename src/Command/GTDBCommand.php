@@ -77,6 +77,7 @@ class GTDBCommand extends Command
         string $dealership
     ): object
     {
+        echo json_encode(array_keys($arr), JSON_PRETTY_PRINT);
         return new class (
             manufacturer: $arr['manufacturer'],
             model: $arr['name'],
