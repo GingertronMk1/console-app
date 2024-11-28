@@ -9,12 +9,23 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+/**
+ * @phpstan-type CarObject object{
+ *      manufacturer: string,
+ *      model: string,
+ *      credits: int,
+ *      estimateDays: int,
+ *      maxEstimateDays: int,
+ *      state: string,
+ *      dealership: string,
+ * }
+ */
 #[AsCommand(
     name: 'app:get-gt-db-data',
 )]
 class GTDBCommand extends Command
 {
-    private const URL = 'https://ddm999.github.io/gt7info/data.json';
+    private const string URL = 'https://ddm999.github.io/gt7info/data.json';
 
     public function __construct(
         private readonly HttpClientInterface $client,
@@ -45,7 +56,11 @@ class GTDBCommand extends Command
             $usedCars
         );
 
-        $allCars = array_merge($legends, $useds);
+        /** @var CarObject[] $allCars */
+        $allCars = array_filter(
+            array_merge($legends, $useds),
+            fn(object $car) => $car->state !== 'soldout'
+        );
 
         usort($allCars, $this->sortCars(...));
 
@@ -56,34 +71,47 @@ class GTDBCommand extends Command
                 'Credits',
                 'Est Days',
                 'Max Est Days',
-                'Dealership'
+                'State',
+                'Dealership',
             ],
-            array_map(fn(object $car) => [
-                $car->manufacturer,
-                $car->model,
-                number_format($car->credits),
-                $car->hrEstimateDays(),
-                $car->hrMaxEstimateDays(),
-                ucfirst($car->dealership)
-            ],
+            array_map(
+                function (mixed $car) {
+                    /** @var CarObject $car */
+                    return [
+                        $car->manufacturer,
+                        $car->model,
+                        number_format($car->credits),
+                        $car->hrEstimateDays(),
+                        $car->hrMaxEstimateDays(),
+                        ucfirst($car->state),
+                        ucfirst($car->dealership)
+                    ];
+                },
                 $allCars)
         );
 
         return Command::SUCCESS;
     }
 
+
+    /**
+     * @param array $arr
+     * @param string $dealership
+     * @return CarObject
+     */
     private function getCarClass(
         array  $arr,
         string $dealership
     ): object
     {
-        echo json_encode(array_keys($arr), JSON_PRETTY_PRINT);
+        echo json_encode($arr, JSON_PRETTY_PRINT) . PHP_EOL;
         return new class (
             manufacturer: $arr['manufacturer'],
             model: $arr['name'],
             credits: $arr['credits'],
             estimateDays: $arr['estimatedays'],
             maxEstimateDays: $arr['maxestimatedays'],
+            state: $arr['state'],
             dealership: $dealership
         ) {
             public function __construct(
@@ -92,6 +120,7 @@ class GTDBCommand extends Command
                 public int    $credits,
                 public int    $estimateDays,
                 public int    $maxEstimateDays,
+                public string $state,
                 public string $dealership
             )
             {
