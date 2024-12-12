@@ -3,7 +3,6 @@
 namespace App\Command;
 
 use App\Kernel;
-use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -19,11 +18,11 @@ use Symfony\Component\Filesystem\Filesystem;
 class ParseMessagesCommand extends Command
 {
     private const ARG_FILE_PATH = 'filePath';
+
     public function __construct(
         private readonly Filesystem $filesystem,
         private readonly Kernel $app,
-    )
-    {
+    ) {
         parent::__construct();
     }
 
@@ -39,7 +38,7 @@ class ParseMessagesCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $filePath = $input->getArgument(self::ARG_FILE_PATH);
 
-        $fullFilePath = $this->app->getProjectDir() . '/' . $filePath;
+        $fullFilePath = $this->app->getProjectDir().'/'.$filePath;
 
         $io->info($fullFilePath);
         if ($this->filesystem->exists($fullFilePath)) {
@@ -54,7 +53,7 @@ class ParseMessagesCommand extends Command
                         intdiv($message['timestamp_ms'], 1000)
                     )
                         ->format('Y-m-d H:i:s'),
-                    wordwrap($message['content'] ?? 'Content unknown', 40)
+                    wordwrap($message['content'] ?? 'Content unknown', 40),
                 ],
                 array_reverse($messages)
             );
@@ -65,7 +64,7 @@ class ParseMessagesCommand extends Command
             );
 
             $this->filesystem->dumpFile(
-                $this->app->getProjectDir() . '/output.txt',
+                $this->app->getProjectDir().'/output.txt',
                 implode(
                     PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL,
                     array_map(

@@ -13,6 +13,7 @@
         "symfony/framework-bundle": "7.1.*",
         "symfony/http-client": "7.1.*",
         "symfony/runtime": "7.1.*",
+        "symfony/stopwatch": "7.1.*",
         "symfony/yaml": "7.1.*"
     },
     "config": {
@@ -53,7 +54,9 @@
         ],
         "post-update-cmd": [
             "@auto-scripts"
-        ]
+        ],
+        "fix": "vendor/bin/php-cs-fixer fix",
+        "stan": "vendor/bin/phpstan analyse"
     },
     "conflict": {
         "symfony/symfony": "*"
@@ -65,6 +68,9 @@
         }
     },
     "require-dev": {
-        "symfony/maker-bundle": "^1.60"
+        "friendsofphp/php-cs-fixer": "^3.65",
+        "phpstan/phpstan": "^2.0",
+        "symfony/maker-bundle": "^1.60",
+        "symfony/web-profiler-bundle": "7.1.*"
     }
 }

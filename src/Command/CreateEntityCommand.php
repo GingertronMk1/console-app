@@ -2,7 +2,6 @@
 
 namespace App\Command;
 
-use Stringable;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -20,7 +19,7 @@ use Symfony\Component\HttpKernel\KernelInterface;
  * * repository and finder interfaces and concrete implementations (using Doctrine DBAL)
  * * create and update commands and handlers
  * * Symfony forms
- * * Controller
+ * * Controller.
  */
 #[AsCommand(
     name: 'app:create-entity',
@@ -32,9 +31,8 @@ class CreateEntityCommand extends Command
 
     public function __construct(
         private readonly KernelInterface $kernel,
-        private readonly Filesystem      $filesystem
-    )
-    {
+        private readonly Filesystem $filesystem,
+    ) {
         parent::__construct();
     }
 
@@ -54,16 +52,16 @@ class CreateEntityCommand extends Command
             $io->note(sprintf('You passed an argument: %s', $entityName));
         }
 
-        $srcDir = $this->kernel->getProjectDir() . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR;
+        $srcDir = $this->kernel->getProjectDir().DIRECTORY_SEPARATOR.'src'.DIRECTORY_SEPARATOR;
         $io->note($srcDir);
 
         $table = $io->createTable();
         $table->setHeaders(['path', 'class']);
         foreach ($this->getFilesToCreate($entityName) as $class) {
-            $this->filesystem->dumpFile($srcDir . DIRECTORY_SEPARATOR . $class->getFilePath(), (string) $class);
+            $this->filesystem->dumpFile($srcDir.DIRECTORY_SEPARATOR.$class->getFilePath(), (string) $class);
             $table->addRow([
-                str_replace(DIRECTORY_SEPARATOR,PHP_EOL, $srcDir) . $class->getFilePath(),
-                $class
+                str_replace(DIRECTORY_SEPARATOR, PHP_EOL, $srcDir).$class->getFilePath(),
+                $class,
             ]);
         }
 
@@ -112,22 +110,22 @@ class CreateEntityCommand extends Command
             $createCommandHandler => $this->getEntityClass(
                 $createCommandHandler,
                 attributes: [
-                    'App\\' . $repositoryInterface => 'private readonly'
+                    'App\\'.$repositoryInterface => 'private readonly',
                 ]
             ),
             $updateCommandHandler => $this->getEntityClass(
                 $updateCommandHandler,
                 attributes: [
-                    'App\\' . $repositoryInterface => 'private readonly'
+                    'App\\'.$repositoryInterface => 'private readonly',
                 ]
             ),
             $dbalFinder => $this->getEntityClass(
                 $dbalFinder,
-                implements: ['App\\' . $finderInterface]
+                implements: ['App\\'.$finderInterface]
             ),
             $dbalRepository => $this->getEntityClass(
                 $dbalRepository,
-                implements: ['App\\' . $repositoryInterface]
+                implements: ['App\\'.$repositoryInterface]
             ),
             $controller => $this->getEntityClass(
                 $controller,
@@ -145,34 +143,25 @@ class CreateEntityCommand extends Command
     private function getEntityClass(
         string $fqn,
         string $type = 'class',
-        array  $implements = [],
-        array  $extends = [],
-        array  $attributes = [],
-        array  $methods = [],
-    ): object
-    {
-        return new class(
-            fqn: $fqn,
-            type: $type,
-            implements: $implements,
-            extends: $extends,
-            attributes: $attributes,
-            methods: $methods
-        ) implements Stringable {
+        array $implements = [],
+        array $extends = [],
+        array $attributes = [],
+        array $methods = [],
+    ): object {
+        return new class(fqn: $fqn, type: $type, implements: $implements, extends: $extends, attributes: $attributes, methods: $methods) implements \Stringable {
             public function __construct(
                 public readonly string $fqn,
                 public readonly string $type,
-                public readonly array  $implements,
-                public readonly array  $extends,
-                public readonly array  $attributes,
-                public readonly array  $methods,
-            )
-            {
+                public readonly array $implements,
+                public readonly array $extends,
+                public readonly array $attributes,
+                public readonly array $methods,
+            ) {
             }
 
             public function getFilePath(): string
             {
-                return str_replace("\\", DIRECTORY_SEPARATOR, $this->fqn) . '.php';
+                return str_replace('\\', DIRECTORY_SEPARATOR, $this->fqn).'.php';
             }
 
             private function getLastBackslash(): int
@@ -192,10 +181,9 @@ class CreateEntityCommand extends Command
 
             private function getExtends(): string
             {
-
                 return match (count($this->extends)) {
                     0 => '',
-                    default => ' extends ' . implode(', ', $this->addLeadingBackslashes($this->extends))
+                    default => ' extends '.implode(', ', $this->addLeadingBackslashes($this->extends)),
                 };
             }
 
@@ -203,7 +191,7 @@ class CreateEntityCommand extends Command
             {
                 return match (count($this->implements)) {
                     0 => '',
-                    default => ' implements ' . implode(', ', $this->addLeadingBackslashes($this->implements))
+                    default => ' implements '.implode(', ', $this->addLeadingBackslashes($this->implements)),
                 };
             }
 
@@ -224,15 +212,16 @@ class CreateEntityCommand extends Command
             {
                 $ret = [];
                 foreach ($this->attributes as $class => $type) {
-                    $baseClass = '$' . lcfirst(substr($class, strrpos($class, '\\') + 1));
-                    $ret[] = $type . ' ' . $this->addLeadingBackslash($class) . ' ' . $baseClass;
+                    $baseClass = '$'.lcfirst(substr($class, strrpos($class, '\\') + 1));
+                    $ret[] = $type.' '.$this->addLeadingBackslash($class).' '.$baseClass;
                 }
+
                 return implode(','.PHP_EOL, $ret);
             }
 
             private function getConstructor(): string
             {
-                if ($this->type === 'interface') {
+                if ('interface' === $this->type) {
                     return '';
                 }
 
@@ -241,7 +230,6 @@ public function __construct(
     {$this->getAttributes()}
 ) {}
 PHP;
-
             }
 
             public function __toString(): string
@@ -260,7 +248,6 @@ namespace App\\{$this->getNamespace()};
 }
 
 PHP;
-
             }
         };
     }
