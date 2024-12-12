@@ -60,7 +60,7 @@ class CreateEntityCommand extends Command
         foreach ($this->getFilesToCreate($entityName) as $class) {
             $this->filesystem->dumpFile($srcDir.\DIRECTORY_SEPARATOR.$class->getFilePath(), (string) $class);
             $table->addRow([
-                str_replace(\DIRECTORY_SEPARATOR, \PHP_EOL, $srcDir).$class->getFilePath(),
+                str_replace(\DIRECTORY_SEPARATOR, PHP_EOL, $srcDir).$class->getFilePath(),
                 $class,
             ]);
         }
@@ -216,7 +216,7 @@ class CreateEntityCommand extends Command
                     $ret[] = $type.' '.$this->addLeadingBackslash($class).' '.$baseClass;
                 }
 
-                return implode(','.\PHP_EOL, $ret);
+                return implode(','.PHP_EOL, $ret);
             }
 
             private function getConstructor(): string

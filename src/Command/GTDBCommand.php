@@ -64,10 +64,10 @@ class GTDBCommand extends Command
 
         $allCars = array_filter(
             array_merge($legends, $useds),
-            fn (array $car) => self::STOCK_SOLD_OUT !== $car['state']
+            static fn (array $car) => self::STOCK_SOLD_OUT !== $car['state']
         );
 
-        usort($allCars, function (array $a, array $b) {
+        usort($allCars, static function (array $a, array $b) {
             $comps = [
                 'price' => $b['credits'] - $a['credits'],
                 'manufacturer' => strcmp($a['manufacturer'], $b['manufacturer']),
