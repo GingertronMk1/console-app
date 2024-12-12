@@ -4,6 +4,7 @@ namespace App\Command;
 
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -27,6 +28,12 @@ class GTDBCommand extends Command
 {
     private const string URL = 'https://ddm999.github.io/gt7info/data.json';
 
+    private const string STOCK_NORMAL = 'normal';
+    private const string STOCK_LIMITED = 'limited';
+    private const string STOCK_SOLD_OUT = 'soldout';
+
+    private const string REWARD_TYPE_MENUBOOK = 'menubook';
+    private const string REWARD_TYPE_LICENSE = 'license';
     public function __construct(
         private readonly HttpClientInterface $client,
     )
@@ -36,7 +43,6 @@ class GTDBCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-
         $io = new SymfonyStyle($input, $output);
 
         $response = $this->client->request('GET', self::URL);
@@ -59,10 +65,24 @@ class GTDBCommand extends Command
         /** @var CarObject[] $allCars */
         $allCars = array_filter(
             array_merge($legends, $useds),
-            fn(object $car) => $car->state !== 'soldout'
+            fn(object $car) => $car->state !== self::STOCK_SOLD_OUT
         );
 
-        usort($allCars, $this->sortCars(...));
+        usort($allCars, function (object $a, object $b) {
+            $comps = [
+                'price' => $b->credits - $a->credits,
+                'manufacturer' =>strcmp($a->manufacturer, $b->manufacturer),
+                'model' => strcmp($a->model, $b->model),
+            ];
+
+            foreach ($comps as $comp) {
+                if ($comp !== 0) {
+                    return $comp;
+                }
+            }
+
+            return 0;
+        });
 
         $io->table(
             [
@@ -73,6 +93,8 @@ class GTDBCommand extends Command
                 'Max Est Days',
                 'State',
                 'Dealership',
+                'Menu Book',
+                'License'
             ],
             array_map(
                 function (mixed $car) {
@@ -83,8 +105,14 @@ class GTDBCommand extends Command
                         number_format($car->credits),
                         $car->hrEstimateDays(),
                         $car->hrMaxEstimateDays(),
-                        ucfirst($car->state),
-                        ucfirst($car->dealership)
+                        match ($car->state) {
+                            self::STOCK_SOLD_OUT => '<fg=red>' . ucfirst($car->state) . '</>',
+                            self::STOCK_LIMITED => '<fg=yellow>' . ucfirst($car->state) . '</>',
+                            default => ucfirst($car->state),
+                        },
+                        ucfirst($car->dealership),
+                        $car->hrMenuBook(),
+                        $car->hrLicense(),
                     ];
                 },
                 $allCars)
@@ -104,7 +132,18 @@ class GTDBCommand extends Command
         string $dealership
     ): object
     {
-        echo json_encode($arr, JSON_PRETTY_PRINT) . PHP_EOL;
+        $rewardCar = $arr['rewardcar'];
+        $menuBooks = null;
+        $licenses = null;
+        if (is_array($rewardCar)){
+            if ($rewardCar['type'] === self::REWARD_TYPE_MENUBOOK) {
+                $menuBooks = $rewardCar;
+            } else if ($rewardCar['type'] === self::REWARD_TYPE_LICENSE) {
+                $licenses = $rewardCar;
+            }
+        }
+
+
         return new class (
             manufacturer: $arr['manufacturer'],
             model: $arr['name'],
@@ -112,7 +151,9 @@ class GTDBCommand extends Command
             estimateDays: $arr['estimatedays'],
             maxEstimateDays: $arr['maxestimatedays'],
             state: $arr['state'],
-            dealership: $dealership
+            dealership: $dealership,
+            menubook: $menuBooks,
+            license: $licenses
         ) {
             public function __construct(
                 public string $manufacturer,
@@ -121,7 +162,9 @@ class GTDBCommand extends Command
                 public int    $estimateDays,
                 public int    $maxEstimateDays,
                 public string $state,
-                public string $dealership
+                public string $dealership,
+                public ?array $menubook,
+                public ?array $license,
             )
             {
             }
@@ -133,12 +176,49 @@ class GTDBCommand extends Command
 
             public function hrEstimateDays(): string
             {
-                return $this->numberHr($this->estimateDays);
+                return $this->numberHr($this->maxEstimateDays);
             }
 
             public function hrMaxEstimateDays(): string
             {
-                return $this->numberHr($this->maxEstimateDays);
+                $diffDays = abs($this->maxEstimateDays);
+                $interval = new \DateInterval("P{$diffDays}D");
+                $dateTime = new \DateTime();
+                if ($this->maxEstimateDays > 0) {
+                    $dateTime->add($interval);
+                } else {
+                    $dateTime->sub($interval);
+                }
+
+                $ymd = $dateTime->format('Y-m-d');
+
+                $colour = match ($this->maxEstimateDays <=> 0) {
+                    -1 => 'red',
+                    0 => 'orange',
+                    default => 'green',
+                };
+
+                return "<bg={$colour}>{$ymd}</>";
+            }
+
+            public function hrMenuBook(): string
+            {
+                if (is_null($this->menubook)) {
+                    return 'No';
+                }
+
+                return "Menubook {$this->menubook['name']}";
+            }
+
+            public function hrLicense(): string
+            {
+                if (is_null($this->license)) {
+                    return 'No';
+                }
+
+                $requirement = ucfirst($this->license['requirement']);
+
+                return "License: {$this->license['name']} {$requirement}";
             }
 
             private function numberHr(int $number): string
@@ -150,36 +230,6 @@ class GTDBCommand extends Command
                 };
             }
         };
-    }
-
-    private function sortCars(object $a, object $b): int
-    {
-        $manComp = strcmp($a->manufacturer, $b->manufacturer);
-        return $manComp === 0 ? strcmp($a->model, $b->model) : $manComp;
-    }
-
-    private function makeTable(SymfonyStyle $io, array $cars, string $dealership): void
-    {
-        $table = $io->createTable();
-        $table->setHeaders(['Make', 'Model', 'Credits', 'Est Days', 'Max Est Days']);
-        $carObjs = array_map(
-            $this->getCarClass(...),
-            $cars
-        );
-
-        usort($carObjs, $this->sortCars(...));
-
-        foreach ($carObjs as $car) {
-            $table->addRow([
-                $car->manufacturer,
-                $car->model,
-                $car->hrCredits(),
-                $car->hrEstimateDays(),
-                $car->hrMaxEstimateDays(),
-            ]);
-        }
-
-        $table->render();
     }
 }
 
