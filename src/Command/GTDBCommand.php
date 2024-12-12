@@ -18,8 +18,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *      'maxEstimateDays': int,
  *      'state': string,
  *      'dealership': string,
- *      'menubook': array,
- *      'license': array,
+ *      'menubook': null|array<string, string>,
+ *      'license': null|array<string, string>,
  * }
  */
 #[AsCommand(
@@ -29,7 +29,6 @@ class GTDBCommand extends Command
 {
     private const string URL = 'https://ddm999.github.io/gt7info/data.json';
 
-    private const string STOCK_NORMAL = 'normal';
     private const string STOCK_LIMITED = 'limited';
     private const string STOCK_SOLD_OUT = 'soldout';
 
@@ -119,8 +118,8 @@ class GTDBCommand extends Command
                     $endDate = "<bg={$colour}>{$ymd}</>";
 
                     return [
-                        $car['manufacturer'],
-                        $car['model'],
+                        (string) $car['manufacturer'],
+                        (string) $car['model'],
                         number_format($car['credits']),
                         $car['estimateDays'],
                         $endDate,
@@ -141,6 +140,7 @@ class GTDBCommand extends Command
     }
 
     /**
+     * @param array<string, mixed> $arr
      * @return CarArray
      */
     private function getCarClass(
@@ -159,12 +159,12 @@ class GTDBCommand extends Command
         }
 
         return [
-            'manufacturer' => $arr['manufacturer'],
-            'model' => $arr['name'],
-            'credits' => $arr['credits'],
-            'estimateDays' => $arr['estimatedays'],
-            'maxEstimateDays' => $arr['maxestimatedays'],
-            'state' => $arr['state'],
+            'manufacturer' => (string) $arr['manufacturer'],
+            'model' => (string) $arr['name'],
+            'credits' => (int) $arr['credits'],
+            'estimateDays' => (int) $arr['estimatedays'],
+            'maxEstimateDays' => (int) $arr['maxestimatedays'],
+            'state' => (string) $arr['state'],
             'dealership' => $dealership,
             'menubook' => $menuBooks,
             'license' => $licenses,
