@@ -46,15 +46,18 @@ class ParseMessagesCommand extends Command
             ['messages' => $messages] = json_decode($messagesJson, true);
 
             $modifiedMessages = array_map(
-                fn (array $message) => [
-                    $message['sender_name'],
-                    \DateTimeImmutable::createFromFormat(
-                        'U',
-                        intdiv($message['timestamp_ms'], 1000)
-                    )
-                        ->format('Y-m-d H:i:s'),
-                    wordwrap($message['content'] ?? 'Content unknown', 40),
-                ],
+                function (array $message) {
+                    $dt =
+                        \DateTimeImmutable::createFromFormat(
+                            'U',
+                            (string) intdiv($message['timestamp_ms'], 1000)
+                        );
+
+                    return [$message['sender_name'],
+                        $dt ? $dt->format('Y-m-d H:i:s') : '',
+                        wordwrap($message['content'] ?? 'Content unknown', 40),
+                    ];
+                },
                 array_reverse($messages)
             );
 
@@ -66,7 +69,7 @@ class ParseMessagesCommand extends Command
             $this->filesystem->dumpFile(
                 $this->app->getProjectDir().'/output.txt',
                 implode(
-                    PHP_EOL.PHP_EOL.'---'.PHP_EOL.PHP_EOL,
+                    \PHP_EOL.\PHP_EOL.'---'.\PHP_EOL.\PHP_EOL,
                     array_map(
                         fn (array $message) => "{$message[0]} | {$message[1]}\n{$message[2]}",
                         $modifiedMessages

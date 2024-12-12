@@ -49,18 +49,18 @@ class CreateEntityCommand extends Command
         $entityName = $input->getArgument(self::ENTITY_NAME_ARG);
 
         if ($entityName) {
-            $io->note(sprintf('You passed an argument: %s', $entityName));
+            $io->note(\sprintf('You passed an argument: %s', $entityName));
         }
 
-        $srcDir = $this->kernel->getProjectDir().DIRECTORY_SEPARATOR.'src'.DIRECTORY_SEPARATOR;
+        $srcDir = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'src'.\DIRECTORY_SEPARATOR;
         $io->note($srcDir);
 
         $table = $io->createTable();
         $table->setHeaders(['path', 'class']);
         foreach ($this->getFilesToCreate($entityName) as $class) {
-            $this->filesystem->dumpFile($srcDir.DIRECTORY_SEPARATOR.$class->getFilePath(), (string) $class);
+            $this->filesystem->dumpFile($srcDir.\DIRECTORY_SEPARATOR.$class->getFilePath(), (string) $class);
             $table->addRow([
-                str_replace(DIRECTORY_SEPARATOR, PHP_EOL, $srcDir).$class->getFilePath(),
+                str_replace(\DIRECTORY_SEPARATOR, \PHP_EOL, $srcDir).$class->getFilePath(),
                 $class,
             ]);
         }
@@ -161,7 +161,7 @@ class CreateEntityCommand extends Command
 
             public function getFilePath(): string
             {
-                return str_replace('\\', DIRECTORY_SEPARATOR, $this->fqn).'.php';
+                return str_replace('\\', \DIRECTORY_SEPARATOR, $this->fqn).'.php';
             }
 
             private function getLastBackslash(): int
@@ -181,7 +181,7 @@ class CreateEntityCommand extends Command
 
             private function getExtends(): string
             {
-                return match (count($this->extends)) {
+                return match (\count($this->extends)) {
                     0 => '',
                     default => ' extends '.implode(', ', $this->addLeadingBackslashes($this->extends)),
                 };
@@ -189,7 +189,7 @@ class CreateEntityCommand extends Command
 
             private function getImplements(): string
             {
-                return match (count($this->implements)) {
+                return match (\count($this->implements)) {
                     0 => '',
                     default => ' implements '.implode(', ', $this->addLeadingBackslashes($this->implements)),
                 };
@@ -216,7 +216,7 @@ class CreateEntityCommand extends Command
                     $ret[] = $type.' '.$this->addLeadingBackslash($class).' '.$baseClass;
                 }
 
-                return implode(','.PHP_EOL, $ret);
+                return implode(','.\PHP_EOL, $ret);
             }
 
             private function getConstructor(): string

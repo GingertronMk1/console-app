@@ -117,11 +117,22 @@ class GTDBCommand extends Command
 
                     $endDate = "<bg={$colour}>{$ymd}</>";
 
+                    $menuBook = '';
+                    if ($car['menubook']) {
+                        $menuBook = $car['menubook']['name'];
+                    }
+
+                    $license = '';
+                    if ($car['license']) {
+                        $requirement = ucfirst($car['license']['requirement']);
+                        $license = "{$car['license']['name']} {$requirement}";
+                    }
+
                     return [
                         (string) $car['manufacturer'],
                         (string) $car['model'],
                         number_format($car['credits']),
-                        $car['estimateDays'],
+                        $this->hrNumber($car['estimateDays']),
                         $endDate,
                         match ($car['state']) {
                             self::STOCK_SOLD_OUT => '<fg=red>'.ucfirst($car['state']).'</>',
@@ -129,8 +140,8 @@ class GTDBCommand extends Command
                             default => ucfirst($car['state']),
                         },
                         ucfirst($car['dealership']),
-                        $car['menubook'] ? "Menubook {$car['menubook']['name']}" : '',
-                        $car['license'] ? "License: {$car['license']['name']} {$car['license']['requirement']}" : '',
+                        $menuBook,
+                        $license,
                     ];
                 },
                 $allCars)
@@ -141,6 +152,7 @@ class GTDBCommand extends Command
 
     /**
      * @param array<string, mixed> $arr
+     *
      * @return CarArray
      */
     private function getCarClass(
@@ -150,7 +162,7 @@ class GTDBCommand extends Command
         $rewardCar = $arr['rewardcar'];
         $menuBooks = null;
         $licenses = null;
-        if (is_array($rewardCar) && isset($rewardCar['type'])) {
+        if (\is_array($rewardCar) && isset($rewardCar['type'])) {
             if (self::REWARD_TYPE_MENUBOOK === $rewardCar['type']) {
                 $menuBooks = $rewardCar;
             } elseif (self::REWARD_TYPE_LICENSE === $rewardCar['type']) {
@@ -169,5 +181,16 @@ class GTDBCommand extends Command
             'menubook' => $menuBooks,
             'license' => $licenses,
         ];
+    }
+
+    private function hrNumber(int $num): string
+    {
+        $absVal = abs($num);
+
+        return match ($num <=> 0) {
+            -1 => "-{$absVal}",
+            0 => "±{$absVal}",
+            1 => "+{$absVal}",
+        };
     }
 }

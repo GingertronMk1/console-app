@@ -55,8 +55,12 @@
         "post-update-cmd": [
             "@auto-scripts"
         ],
-        "fix": "vendor/bin/php-cs-fixer fix",
-        "stan": "vendor/bin/phpstan analyse"
+        "fix": "vendor/bin/php-cs-fixer fix --allow-risky=yes",
+        "stan": "vendor/bin/phpstan analyse",
+        "preflight": [
+            "@fix",
+            "@stan"
+        ]
     },
     "conflict": {
         "symfony/symfony": "*"
