@@ -8,7 +8,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -40,9 +39,10 @@ class GTDBCommand extends Command
 
     public function __construct(
         private readonly HttpClientInterface $client,
-        private readonly FileSystem $fileSystem,
-        private readonly string $projectDir,
-    ) {
+        private readonly FileSystem          $fileSystem,
+        private readonly string              $projectDir,
+    )
+    {
         parent::__construct();
     }
 
@@ -57,30 +57,39 @@ class GTDBCommand extends Command
             'legend' => ['cars' => $legendCars],
         ] = $response->toArray();
 
-        $reJsoned = json_encode($response->toArray(), JSON_PRETTY_PRINT);
+        foreach (['used' => $usedCars, 'legend' => $legendCars] as $key => $cars) {
+            $header = array_keys(array_values($cars)[0]);
 
-        if (\is_string($reJsoned)) {
-            $outputDir = "{$this->projectDir}/outputs/gtdb.json";
-            $this->fileSystem->dumpFile($outputDir, $reJsoned);
+            $csv = [$header];
+            foreach ($cars as $car) {
+                $csv[] = array_map(
+                    static fn (mixed $c) => \is_array($c) ? '' : $c,
+                    $car
+                );
+            }
+
+            $outputDir = "{$this->projectDir}/outputs/GTDB/{$key}.csv";
+            $this->fileSystem->dumpFile(
+                $outputDir,
+                implode(PHP_EOL, array_map(static fn (array $row) => implode(',', $row), $csv)),
+            );
             $io->info("Printed JSON to `{$outputDir}`");
-        } else {
-            $io->error('Unable to re-encode as JSON for storage');
         }
 
 
         $legends = array_map(
-            fn (array $arr) => $this->getCarClass($arr, 'legends'),
+            fn(array $arr) => $this->getCarClass($arr, 'legends'),
             $legendCars
         );
 
         $useds = array_map(
-            fn (array $arr) => $this->getCarClass($arr, 'used'),
+            fn(array $arr) => $this->getCarClass($arr, 'used'),
             $usedCars
         );
 
         $allCars = array_filter(
             array_merge($legends, $useds),
-            static fn (array $car) => self::STOCK_SOLD_OUT !== $car['state']
+            static fn(array $car) => self::STOCK_SOLD_OUT !== $car['state']
         );
 
         usort($allCars, static function (array $a, array $b) {
@@ -146,14 +155,14 @@ class GTDBCommand extends Command
                     }
 
                     return [
-                        (string) $car['manufacturer'],
-                        (string) $car['model'],
+                        (string)$car['manufacturer'],
+                        (string)$car['model'],
                         number_format($car['credits']),
                         $this->hrNumber($car['estimateDays']),
                         $endDate,
                         match ($car['state']) {
-                            self::STOCK_SOLD_OUT => '<fg=red>'.ucfirst($car['state']).'</>',
-                            self::STOCK_LIMITED => '<fg=yellow>'.ucfirst($car['state']).'</>',
+                            self::STOCK_SOLD_OUT => '<fg=red>' . ucfirst($car['state']) . '</>',
+                            self::STOCK_LIMITED => '<fg=yellow>' . ucfirst($car['state']) . '</>',
                             default => ucfirst($car['state']),
                         },
                         ucfirst($car['dealership']),
@@ -174,9 +183,10 @@ class GTDBCommand extends Command
      * @return CarArray
      */
     private function getCarClass(
-        array $arr,
+        array  $arr,
         string $dealership,
-    ): array {
+    ): array
+    {
         $rewardCar = $arr['rewardcar'];
         $menuBooks = null;
         $licenses = null;
@@ -189,16 +199,16 @@ class GTDBCommand extends Command
         }
 
         return [
-            'manufacturer' => (string) $arr['manufacturer'],
-            'model' => (string) $arr['name'],
-            'credits' => (int) $arr['credits'],
-            'estimateDays' => (int) $arr['estimatedays'],
-            'maxEstimateDays' => (int) $arr['maxestimatedays'],
-            'state' => (string) $arr['state'],
+            'manufacturer' => (string)$arr['manufacturer'],
+            'model' => (string)$arr['name'],
+            'credits' => (int)$arr['credits'],
+            'estimateDays' => (int)$arr['estimatedays'],
+            'maxEstimateDays' => (int)$arr['maxestimatedays'],
+            'state' => (string)$arr['state'],
             'dealership' => $dealership,
             'menubook' => $menuBooks,
             'license' => $licenses,
-            'new' => (bool) $arr['new']
+            'new' => (bool)$arr['new']
         ];
     }
 
