@@ -7,6 +7,8 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -20,6 +22,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *      'dealership': string,
  *      'menubook': null|array<string, string>,
  *      'license': null|array<string, string>,
+ *     'new': bool
  * }
  */
 #[AsCommand(
@@ -37,6 +40,8 @@ class GTDBCommand extends Command
 
     public function __construct(
         private readonly HttpClientInterface $client,
+        private readonly FileSystem $fileSystem,
+        private readonly KernelInterface $kernel,
     ) {
         parent::__construct();
     }
@@ -51,6 +56,15 @@ class GTDBCommand extends Command
             'used' => ['cars' => $usedCars],
             'legend' => ['cars' => $legendCars],
         ] = $response->toArray();
+
+        $reJsoned = json_encode($response->toArray(), JSON_PRETTY_PRINT);
+
+        if (\is_string($reJsoned)) {
+            $this->fileSystem->dumpFile($this->kernel->getProjectDir() . '/outputs/gtdb.json', $reJsoned);
+        } else {
+            $io->error('Unable to re-encode as JSON for storage');
+        }
+
 
         $legends = array_map(
             fn (array $arr) => $this->getCarClass($arr, 'legends'),
@@ -94,6 +108,7 @@ class GTDBCommand extends Command
                 'Dealership',
                 'Menu Book',
                 'License',
+                'New?'
             ],
             array_map(
                 function (array $car) {
@@ -142,6 +157,7 @@ class GTDBCommand extends Command
                         ucfirst($car['dealership']),
                         $menuBook,
                         $license,
+                        $car['new'] ? '<fg=yellow>YES</>' : '<fg=red>NO</>',
                     ];
                 },
                 $allCars)
@@ -152,7 +168,7 @@ class GTDBCommand extends Command
 
     /**
      * @param array<string, mixed> $arr
-     *
+     * @param string $dealership
      * @return CarArray
      */
     private function getCarClass(
@@ -180,6 +196,7 @@ class GTDBCommand extends Command
             'dealership' => $dealership,
             'menubook' => $menuBooks,
             'license' => $licenses,
+            'new' => (bool) $arr['new']
         ];
     }
 
