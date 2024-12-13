@@ -41,7 +41,7 @@ class GTDBCommand extends Command
     public function __construct(
         private readonly HttpClientInterface $client,
         private readonly FileSystem $fileSystem,
-        private readonly KernelInterface $kernel,
+        private readonly string $projectDir,
     ) {
         parent::__construct();
     }
@@ -60,7 +60,9 @@ class GTDBCommand extends Command
         $reJsoned = json_encode($response->toArray(), JSON_PRETTY_PRINT);
 
         if (\is_string($reJsoned)) {
-            $this->fileSystem->dumpFile($this->kernel->getProjectDir() . '/outputs/gtdb.json', $reJsoned);
+            $outputDir = "{$this->projectDir}/outputs/gtdb.json";
+            $this->fileSystem->dumpFile($outputDir, $reJsoned);
+            $io->info("Printed JSON to `{$outputDir}`");
         } else {
             $io->error('Unable to re-encode as JSON for storage');
         }
